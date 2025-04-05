@@ -1,5 +1,6 @@
 use std::net::{TcpListener, TcpStream};
 use std::io::{BufRead, BufReader, Write,Read};
+use std::thread;
 
 
 fn respond_body(mut stream: TcpStream, body:&str){
@@ -69,8 +70,9 @@ fn main() {
     for stream in listener.incoming() {
         match stream {
             Ok(stream) => {
-                handle_client_req(stream);
-            }
+                thread::spawn(|| {
+                    handle_client_req(stream);
+                });            }
             Err(e) => {
                 println!("Error: {}", e);
             }
