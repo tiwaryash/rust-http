@@ -28,6 +28,8 @@ fn handle_client_req(mut stream: TcpStream) {
             if method == "GET" && path.starts_with("/echo/") {
                 let echo_str = &path[6..];
                 respond_body(stream, echo_str);
+            } else if method == "GET" && (path == "/" || path == "/index.html") {
+                respond_body(stream, "Welcome to the Rust server!");
             } else {
                 let response = "HTTP/1.1 404 Not Found\r\nContent-Type: text/plain\r\nContent-Length: 19\r\n\r\n404 - Page not found";
                 stream.write_all(response.as_bytes()).unwrap();
@@ -36,6 +38,7 @@ fn handle_client_req(mut stream: TcpStream) {
         }
     }
 }
+
 fn main() {
     println!("Server running on 127.0.0.1:4221");
     let listener = TcpListener::bind("127.0.0.1:4221").unwrap();
