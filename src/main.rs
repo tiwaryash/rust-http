@@ -1,30 +1,41 @@
 use std::net::{TcpListener, TcpStream};
 use std::io::{BufRead, BufReader, Write};
 
+
+fn respond_body(mut stream: TcpStream, body:&str){
+    let content_length=body.len();
+    let response=format!(
+        "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {}\r\n\r\n{}",
+        content_length,
+        body
+    );
+    stream.write_all(response.as_bytes()).unwrap();
+    stream.flush().unwrap();
+
+
+}
 fn handle_client_req(mut stream: TcpStream) {
     let mut reader = BufReader::new(&stream);
     let mut request_line = String::new();
-    
+
     if let Ok(_) = reader.read_line(&mut request_line) {
         let parts: Vec<&str> = request_line.trim().split_whitespace().collect();
         if parts.len() >= 2 {
             let method = parts[0];
             let path = parts[1];
-            
             println!("Received request: {} {}", method, path);
-            
-            let response = if path == "/" || path == "/index.html" {
-                "HTTP/1.1 200 OK\r\n\r\nWelcome to the Rust server!"
+
+            if method == "GET" && path.starts_with("/echo/") {
+                let echo_str = &path[6..];
+                respond_body(stream, echo_str);
             } else {
-                "HTTP/1.1 404 Not Found\r\n\r\n404 - Page not found"
-            };
-            
-            stream.write_all(response.as_bytes()).unwrap();
-            stream.flush().unwrap();
+                let response = "HTTP/1.1 404 Not Found\r\nContent-Type: text/plain\r\nContent-Length: 19\r\n\r\n404 - Page not found";
+                stream.write_all(response.as_bytes()).unwrap();
+                stream.flush().unwrap();
+            }
         }
     }
 }
-
 fn main() {
     println!("Server running on 127.0.0.1:4221");
     let listener = TcpListener::bind("127.0.0.1:4221").unwrap();
