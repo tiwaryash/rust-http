@@ -68,7 +68,42 @@ fn handle_client_req(mut stream: TcpStream, directory: Arc<String>) {
                 }
             } else if method == "GET" && (path == "/" || path == "/index.html") {
                 respond_body(stream, "Welcome to the Rust server!");
-            } else {
+            } 
+            else if method == "POST" && path.starts_with("/files/") {
+                let filename = &path[7..];
+                let mut filepath = PathBuf::from(&*directory);
+                filepath.push(filename);
+            
+                let mut content_length: usize = 0;
+            
+                for line in reader.by_ref().lines() {
+                    let line = line.unwrap();
+                    if line.is_empty() {
+                        break;
+                    }
+                    if line.to_lowercase().starts_with("content-length:") {
+                        if let Some(len_str) = line.split(':').nth(1) {
+                            content_length = len_str.trim().parse().unwrap_or(0);
+                        }
+                    }
+                }
+            
+                let mut body = vec![0; content_length];
+                reader.read_exact(&mut body).unwrap();
+            
+                if let Ok(mut file) = fs::File::create(&filepath) {
+                    file.write_all(&body).unwrap();
+                    let response = "HTTP/1.1 201 Created\r\n\r\n";
+                    stream.write_all(response.as_bytes()).unwrap();
+                    stream.flush().unwrap();
+                } else {
+                    let response = "HTTP/1.1 500 Internal Server Error\r\n\r\n";
+                    stream.write_all(response.as_bytes()).unwrap();
+                    stream.flush().unwrap();
+                }
+            }
+            
+            else {
                 let response = "HTTP/1.1 404 Not Found\r\nContent-Type: text/plain\r\nContent-Length: 19\r\n\r\n404 - Page not found";
                 stream.write_all(response.as_bytes()).unwrap();
                 stream.flush().unwrap();
