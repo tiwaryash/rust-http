@@ -33,10 +33,10 @@ test_endpoint() {
     fi
     
     if [[ $response == *"$expected"* ]]; then
-        echo -e "${GREEN}✓ PASSED${NC}"
+        echo -e "${GREEN}PASSED${NC}"
         ((PASSED++))
     else
-        echo -e "${RED}✗ FAILED${NC}"
+        echo -e "${RED}FAILED${NC}"
         echo -e "  Expected: $expected"
         echo -e "  Got: $response"
         ((FAILED++))
@@ -50,7 +50,7 @@ if ! curl -s http://localhost:4221/health > /dev/null 2>&1; then
     echo "Please start the server with: cargo run --release -- --verbose"
     exit 1
 fi
-echo -e "${GREEN}✓ Server is running${NC}"
+echo -e "${GREEN}Server is running${NC}"
 echo ""
 
 # Basic endpoint tests
@@ -67,19 +67,19 @@ echo ""
 echo -e "${BLUE}=== HTTP Status Code Tests ===${NC}"
 status_code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:4221/)
 if [ "$status_code" == "200" ]; then
-    echo -e "Testing: 200 OK status... ${GREEN}✓ PASSED${NC}"
+    echo -e "Testing: 200 OK status... ${GREEN}PASSED${NC}"
     ((PASSED++))
 else
-    echo -e "Testing: 200 OK status... ${RED}✗ FAILED${NC}"
+    echo -e "Testing: 200 OK status... ${RED}FAILED${NC}"
     ((FAILED++))
 fi
 
 status_code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:4221/nonexistent)
 if [ "$status_code" == "404" ]; then
-    echo -e "Testing: 404 Not Found status... ${GREEN}✓ PASSED${NC}"
+    echo -e "Testing: 404 Not Found status... ${GREEN}PASSED${NC}"
     ((PASSED++))
 else
-    echo -e "Testing: 404 Not Found status... ${RED}✗ FAILED${NC}"
+    echo -e "Testing: 404 Not Found status... ${RED}FAILED${NC}"
     ((FAILED++))
 fi
 echo ""
@@ -103,10 +103,10 @@ test_endpoint "File deletion (DELETE)" "http://localhost:4221/files/test_upload.
 # Verify deletion
 status_code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:4221/files/test_upload.txt)
 if [ "$status_code" == "404" ]; then
-    echo -e "Testing: File deleted verification... ${GREEN}✓ PASSED${NC}"
+    echo -e "Testing: File deleted verification... ${GREEN}PASSED${NC}"
     ((PASSED++))
 else
-    echo -e "Testing: File deleted verification... ${RED}✗ FAILED${NC}"
+    echo -e "Testing: File deleted verification... ${RED}FAILED${NC}"
     ((FAILED++))
 fi
 echo ""
@@ -117,30 +117,30 @@ echo -e "${BLUE}=== Compression Tests ===${NC}"
 # Test Gzip compression
 response=$(curl -s -i -H "Accept-Encoding: gzip" http://localhost:4221/echo/compression-test-string | grep -i "Content-Encoding")
 if [[ $response == *"gzip"* ]]; then
-    echo -e "Testing: Gzip compression... ${GREEN}✓ PASSED${NC}"
+    echo -e "Testing: Gzip compression... ${GREEN}PASSED${NC}"
     ((PASSED++))
 else
-    echo -e "Testing: Gzip compression... ${RED}✗ FAILED${NC}"
+    echo -e "Testing: Gzip compression... ${RED}FAILED${NC}"
     ((FAILED++))
 fi
 
 # Test Deflate compression
 response=$(curl -s -i -H "Accept-Encoding: deflate" http://localhost:4221/echo/deflate-test-string | grep -i "Content-Encoding")
 if [[ $response == *"deflate"* ]]; then
-    echo -e "Testing: Deflate compression... ${GREEN}✓ PASSED${NC}"
+    echo -e "Testing: Deflate compression... ${GREEN}PASSED${NC}"
     ((PASSED++))
 else
-    echo -e "Testing: Deflate compression... ${RED}✗ FAILED${NC}"
+    echo -e "Testing: Deflate compression... ${RED}FAILED${NC}"
     ((FAILED++))
 fi
 
 # Test Brotli compression (best)
 response=$(curl -s -i -H "Accept-Encoding: br, gzip, deflate" http://localhost:4221/echo/brotli-test-string | grep -i "Content-Encoding")
 if [[ $response == *"br"* ]]; then
-    echo -e "Testing: Brotli compression (priority)... ${GREEN}✓ PASSED${NC}"
+    echo -e "Testing: Brotli compression (priority)... ${GREEN}PASSED${NC}"
     ((PASSED++))
 else
-    echo -e "Testing: Brotli compression (priority)... ${RED}✗ FAILED${NC}"
+    echo -e "Testing: Brotli compression (priority)... ${RED}FAILED${NC}"
     ((FAILED++))
 fi
 echo ""
@@ -164,10 +164,10 @@ for i in {1..10}; do
 done
 
 if [ $success_count -eq 10 ]; then
-    echo -e "${GREEN}✓ PASSED${NC}"
+    echo -e "${GREEN}PASSED${NC}"
     ((PASSED++))
 else
-    echo -e "${RED}✗ FAILED${NC} ($success_count/10 succeeded)"
+    echo -e "${RED}FAILED${NC} ($success_count/10 succeeded)"
     ((FAILED++))
 fi
 echo ""
@@ -178,10 +178,10 @@ echo -e "${BLUE}=== Security Tests ===${NC}"
 # Path traversal attempt
 status_code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:4221/files/../../../etc/passwd)
 if [ "$status_code" == "400" ]; then
-    echo -e "Testing: Path traversal protection... ${GREEN}✓ PASSED${NC}"
+    echo -e "Testing: Path traversal protection... ${GREEN}PASSED${NC}"
     ((PASSED++))
 else
-    echo -e "Testing: Path traversal protection... ${RED}✗ FAILED${NC}"
+    echo -e "Testing: Path traversal protection... ${RED}FAILED${NC}"
     ((FAILED++))
 fi
 echo ""
@@ -196,9 +196,9 @@ echo -e "${BLUE}║${NC}  Total Tests:  $((PASSED + FAILED))"
 echo -e "${BLUE}╚═══════════════════════════════════════════════════╝${NC}"
 
 if [ $FAILED -eq 0 ]; then
-    echo -e "\n${GREEN}🎉 All tests passed! Your HTTP server is working perfectly!${NC}\n"
+    echo -e "\n${GREEN}All tests passed! Your HTTP server is working perfectly!${NC}\n"
     exit 0
 else
-    echo -e "\n${YELLOW}⚠️  Some tests failed. Please review the output above.${NC}\n"
+    echo -e "\n${YELLOW}Some tests failed. Please review the output above.${NC}\n"
     exit 1
 fi

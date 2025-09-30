@@ -119,28 +119,28 @@ impl Router {
         <p><strong>Version 1.0.0</strong> - Built with best practices in mind</p>
         
         <div class="feature">
-            <h3>✨ Features</h3>
+            <h3>Features</h3>
             <ul>
-                <li>✅ Concurrent request handling with thread pool</li>
-                <li>✅ Multiple compression algorithms (Gzip, Deflate, Brotli)</li>
-                <li>✅ Comprehensive error handling</li>
-                <li>✅ Structured logging</li>
-                <li>✅ File serving and uploads</li>
-                <li>✅ RESTful API design</li>
+                <li>Concurrent request handling with thread pool</li>
+                <li>Multiple compression algorithms (Gzip, Deflate, Brotli)</li>
+                <li>Comprehensive error handling</li>
+                <li>Structured logging</li>
+                <li>File serving and uploads</li>
+                <li>RESTful API design</li>
             </ul>
         </div>
         
         <div class="feature">
-            <h3>🔗 Available Endpoints</h3>
-            <div class="endpoint">📍 <code>GET /</code> - This page</div>
-            <div class="endpoint">📍 <code>GET /health</code> - Health check</div>
-            <div class="endpoint">📍 <code>GET /echo/{text}</code> - Echo service</div>
-            <div class="endpoint">📍 <code>GET /user-agent</code> - Get User-Agent header</div>
-            <div class="endpoint">📍 <code>GET /files/{filename}</code> - Download file</div>
-            <div class="endpoint">📍 <code>POST /files/{filename}</code> - Upload file</div>
-            <div class="endpoint">📍 <code>DELETE /files/{filename}</code> - Delete file</div>
-            <div class="endpoint">📍 <code>GET /headers</code> - View request headers</div>
-            <div class="endpoint">📍 <code>GET /api/info</code> - Server information</div>
+            <h3>Available Endpoints</h3>
+            <div class="endpoint"><code>GET /</code> - This page</div>
+            <div class="endpoint"><code>GET /health</code> - Health check</div>
+            <div class="endpoint"><code>GET /echo/{text}</code> - Echo service</div>
+            <div class="endpoint"><code>GET /user-agent</code> - Get User-Agent header</div>
+            <div class="endpoint"><code>GET /files/{filename}</code> - Download file</div>
+            <div class="endpoint"><code>POST /files/{filename}</code> - Upload file</div>
+            <div class="endpoint"><code>DELETE /files/{filename}</code> - Delete file</div>
+            <div class="endpoint"><code>GET /headers</code> - View request headers</div>
+            <div class="endpoint"><code>GET /api/info</code> - Server information</div>
         </div>
     </div>
 </body>

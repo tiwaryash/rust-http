@@ -77,11 +77,11 @@ fn main() -> anyhow::Result<()> {
     // Bind to address
     let listener = TcpListener::bind(config.server_address())?;
 
-    log::info!("🚀 Server starting...");
-    log::info!("📂 Serving files from: {}", config.directory);
-    log::info!("🔧 Worker threads: {}", config.workers);
-    log::info!("🌐 Listening on: http://{}", config.server_address());
-    log::info!("✨ Server is ready to accept connections!");
+    log::info!("Server starting...");
+    log::info!("Serving files from: {}", config.directory);
+    log::info!("Worker threads: {}", config.workers);
+    log::info!("Listening on: http://{}", config.server_address());
+    log::info!("Server is ready to accept connections!");
 
     // Accept connections
     for stream in listener.incoming() {

@@ -5,28 +5,28 @@ A high-performance, feature-rich HTTP server implementation in Rust, demonstrati
 ![Rust](https://img.shields.io/badge/rust-%23000000.svg?style=for-the-badge&logo=rust&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
-## ✨ Features
+## Features
 
 ### Core HTTP Functionality
-- ✅ **Port Binding** - Configurable host and port binding
-- ✅ **HTTP/1.1 Protocol** - Full HTTP/1.1 support with proper status codes
-- ✅ **URL Path Extraction** - Robust request parsing and routing
-- ✅ **Request/Response Body Handling** - Support for reading and writing request bodies
-- ✅ **Header Management** - Complete header parsing and manipulation
-- ✅ **Concurrent Connections** - Thread pool-based architecture for handling multiple connections
-- ✅ **File Operations** - Serve, upload, and delete files with proper content-type detection
+- **Port Binding** - Configurable host and port binding
+- **HTTP/1.1 Protocol** - Full HTTP/1.1 support with proper status codes
+- **URL Path Extraction** - Robust request parsing and routing
+- **Request/Response Body Handling** - Support for reading and writing request bodies
+- **Header Management** - Complete header parsing and manipulation
+- **Concurrent Connections** - Thread pool-based architecture for handling multiple connections
+- **File Operations** - Serve, upload, and delete files with proper content-type detection
 
 ### Advanced Features
-- 🗜️ **HTTP Compression** - Support for Gzip, Deflate, and Brotli compression
-- 🔒 **Security** - Path traversal protection and input validation
-- 📊 **Structured Logging** - Comprehensive logging with configurable verbosity
-- ⚡ **High Performance** - Efficient thread pool management
-- 🎯 **RESTful API Design** - Clean, intuitive API endpoints
-- 🛡️ **Error Handling** - Custom error types with proper HTTP status code mapping
-- 🔧 **Configuration** - CLI arguments and environment variable support
-- 📝 **Content Type Detection** - Automatic MIME type detection for files
+- **HTTP Compression** - Support for Gzip, Deflate, and Brotli compression
+- **Security** - Path traversal protection and input validation
+- **Structured Logging** - Comprehensive logging with configurable verbosity
+- **High Performance** - Efficient thread pool management
+- **RESTful API Design** - Clean, intuitive API endpoints
+- **Error Handling** - Custom error types with proper HTTP status code mapping
+- **Configuration** - CLI arguments and environment variable support
+- **Content Type Detection** - Automatic MIME type detection for files
 
-## 🏗️ Architecture
+## Architecture
 
 The server follows a modular architecture with clear separation of concerns:
 
@@ -48,7 +48,7 @@ src/
 - **Thread Pool Pattern** - Efficient concurrent request handling
 - **Modular Design** - Clean separation of concerns with well-defined modules
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -84,7 +84,7 @@ cargo run --release -- --verbose
 HTTP_PORT=8080 FILE_DIRECTORY=./uploads cargo run --release
 ```
 
-## 📚 API Documentation
+## API Documentation
 
 ### Endpoints
 
@@ -144,7 +144,7 @@ curl http://localhost:4221/api/info
 curl http://localhost:4221/health
 ```
 
-## 🔧 Configuration
+## Configuration
 
 ### Command Line Arguments
 
@@ -166,7 +166,7 @@ curl http://localhost:4221/health
 | `WORKER_THREADS` | 4 | Thread pool size |
 | `RUST_LOG` | info | Log level (trace, debug, info, warn, error) |
 
-## 🗜️ Compression Support
+## Compression Support
 
 The server automatically compresses responses based on the `Accept-Encoding` header:
 
@@ -180,14 +180,14 @@ Compression is applied to:
 - Headers endpoint responses
 - All responses > 100 bytes
 
-## 🛡️ Security Features
+## Security Features
 
 - **Path Traversal Protection** - Prevents access to files outside the configured directory
 - **Input Validation** - All inputs are validated before processing
 - **Error Information Hiding** - Production-ready error messages that don't leak sensitive information
 - **Safe File Operations** - Proper error handling for all file operations
 
-## 📊 Logging
+## Logging
 
 The server uses structured logging with different levels:
 
@@ -208,7 +208,7 @@ Log format includes:
 - Message
 - Request method, path, and body size
 
-## 🧪 Testing
+## Testing
 
 Run the test suite:
 
@@ -237,37 +237,37 @@ curl -X POST -d "test data" http://localhost:4221/files/test.txt
 curl http://localhost:4221/files/test.txt
 ```
 
-## 📈 Performance Characteristics
+## Performance Characteristics
 
 - **Concurrent Connections**: Thread pool-based handling (configurable)
 - **Compression Ratio**: 60-80% reduction for text content
 - **Memory Usage**: Efficient buffer management with `bytes` crate
 - **Request Handling**: Non-blocking connection acceptance
 
-## 🎯 Best Practices Demonstrated
+## Best Practices Demonstrated
 
 ### Code Quality
-- ✅ Modular architecture with clear separation of concerns
-- ✅ Comprehensive error handling with custom error types
-- ✅ Rust idioms: ownership, borrowing, and lifetimes
-- ✅ Type safety and zero-cost abstractions
+- Modular architecture with clear separation of concerns
+- Comprehensive error handling with custom error types
+- Rust idioms: ownership, borrowing, and lifetimes
+- Type safety and zero-cost abstractions
 
 ### Backend Development
-- ✅ RESTful API design
-- ✅ Proper HTTP status codes
-- ✅ Content-Type negotiation
-- ✅ Compression support
-- ✅ Structured logging
-- ✅ Configuration management
+- RESTful API design
+- Proper HTTP status codes
+- Content-Type negotiation
+- Compression support
+- Structured logging
+- Configuration management
 
 ### Production Readiness
-- ✅ Error handling and recovery
-- ✅ Security considerations
-- ✅ Performance optimization
-- ✅ Comprehensive documentation
-- ✅ Testing infrastructure
+- Error handling and recovery
+- Security considerations
+- Performance optimization
+- Comprehensive documentation
+- Testing infrastructure
 
-## 🔄 Development
+## Development
 
 ### Build from source
 ```bash
@@ -289,7 +289,7 @@ cargo fmt
 cargo clippy -- -D warnings
 ```
 
-## 📦 Dependencies
+## Dependencies
 
 | Crate | Purpose |
 |-------|---------|
@@ -307,19 +307,19 @@ cargo clippy -- -D warnings
 | `threadpool` | Thread pool management |
 | `regex` | Pattern matching |
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-## 👨‍💻 Author
+## Author
 
-Built with ❤️ by [Yash Tiwari](https://github.com/tiwaryash)
+Built by [Yash Tiwary](https://github.com/tiwaryash)
 
-## 🎓 Learning Resources
+## Learning Resources
 
 This project demonstrates:
 - HTTP protocol implementation
@@ -329,7 +329,7 @@ This project demonstrates:
 - API design principles
 - Production-ready code practices
 
-## 🌟 Acknowledgments
+## Acknowledgments
 
 - Built as part of the CodeCrafters HTTP Server challenge
 - Inspired by production HTTP servers like nginx and Apache
