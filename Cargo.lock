@@ -216,6 +216,7 @@ dependencies = [
  "clap",
  "env_logger",
  "flate2",
+ "libc",
  "log",
  "regex",
  "serde",

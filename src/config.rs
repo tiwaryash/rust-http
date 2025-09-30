@@ -22,7 +22,7 @@ pub struct Config {
     pub directory: String,
 
     /// Number of worker threads for handling connections
-    #[arg(short, long, default_value = "4", env = "WORKER_THREADS")]
+    #[arg(short, long, default_value_t = Config::default_workers(), env = "WORKER_THREADS")]
     pub workers: usize,
 
     /// Enable verbose logging
@@ -31,6 +31,18 @@ pub struct Config {
 }
 
 impl Config {
+    /// Calculate optimal number of worker threads
+    /// For high concurrency, we use: max(num_cpus * 4, 100)
+    /// This ensures we can handle 100+ concurrent requests efficiently
+    fn default_workers() -> usize {
+        let num_cpus = std::thread::available_parallelism()
+            .map(|n| n.get())
+            .unwrap_or(4);
+        
+        // Use 4x CPU cores, but at least 100 workers for high concurrency
+        std::cmp::max(num_cpus * 4, 100)
+    }
+
     /// Parse configuration from command line arguments and environment variables
     pub fn parse_config() -> Self {
         Config::parse()
