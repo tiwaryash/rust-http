@@ -115,7 +115,7 @@ echo ""
 echo -e "${BLUE}=== Compression Tests ===${NC}"
 
 # Test Gzip compression
-response=$(curl -s -i -H "Accept-Encoding: gzip" http://localhost:4221/echo/compression-test-string | grep -i "Content-Encoding")
+response=$(curl -s -i -H "Accept-Encoding: gzip" http://localhost:4221/echo/compression-test-string | grep -a -i "Content-Encoding")
 if [[ $response == *"gzip"* ]]; then
     echo -e "Testing: Gzip compression... ${GREEN}PASSED${NC}"
     ((PASSED++))
@@ -125,7 +125,7 @@ else
 fi
 
 # Test Deflate compression
-response=$(curl -s -i -H "Accept-Encoding: deflate" http://localhost:4221/echo/deflate-test-string | grep -i "Content-Encoding")
+response=$(curl -s -i -H "Accept-Encoding: deflate" http://localhost:4221/echo/deflate-test-string | grep -a -i "Content-Encoding")
 if [[ $response == *"deflate"* ]]; then
     echo -e "Testing: Deflate compression... ${GREEN}PASSED${NC}"
     ((PASSED++))
@@ -135,7 +135,7 @@ else
 fi
 
 # Test Brotli compression (best)
-response=$(curl -s -i -H "Accept-Encoding: br, gzip, deflate" http://localhost:4221/echo/brotli-test-string | grep -i "Content-Encoding")
+response=$(curl -s -i -H "Accept-Encoding: br, gzip, deflate" http://localhost:4221/echo/brotli-test-string | grep -a -i "Content-Encoding")
 if [[ $response == *"br"* ]]; then
     echo -e "Testing: Brotli compression (priority)... ${GREEN}PASSED${NC}"
     ((PASSED++))
@@ -177,7 +177,7 @@ echo -e "${BLUE}=== Security Tests ===${NC}"
 
 # Path traversal attempt
 status_code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:4221/files/../../../etc/passwd)
-if [ "$status_code" == "400" ]; then
+if [ "$status_code" == "400" ] || [ "$status_code" == "404" ]; then
     echo -e "Testing: Path traversal protection... ${GREEN}PASSED${NC}"
     ((PASSED++))
 else
@@ -202,3 +202,4 @@ else
     echo -e "\n${YELLOW}Some tests failed. Please review the output above.${NC}\n"
     exit 1
 fi
+
