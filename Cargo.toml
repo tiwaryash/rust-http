@@ -1,11 +1,25 @@
 [package]
 name = "codecrafters-http-server"
-version = "0.1.0"
+version = "1.0.0"
 authors = ["Codecrafters <hello@codecrafters.io>"]
 edition = "2021"
 rust-version = "1.80"
+
+[[bin]]
+name = "http-server"
+path = "src/main.rs"
 
 [dependencies]
 anyhow = "1.0.68"                                # error handling
 bytes = "1.3.0"                                  # helps manage buffers
 thiserror = "1.0.38"                             # error handling
+flate2 = "1.0"                                   # gzip compression
+brotli = "3.3"                                   # brotli compression
+serde = { version = "1.0", features = ["derive"] }  # serialization
+serde_json = "1.0"                               # JSON support
+log = "0.4"                                      # logging facade
+env_logger = "0.11"                              # logging implementation
+clap = { version = "4.4", features = ["derive", "env"] }  # CLI argument parsing
+chrono = "0.4"                                   # date/time handling
+threadpool = "1.8"                               # thread pool for better concurrency
+regex = "1.10"                                   # regex support for routing

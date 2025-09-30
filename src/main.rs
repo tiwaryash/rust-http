@@ -1,146 +1,121 @@
-use std::env;
-use std::fs;
-use std::io::{BufRead, BufReader, Read, Write};
+mod compression;
+mod config;
+mod error;
+mod request;
+mod response;
+mod router;
+
+use config::Config;
+use error::ServerError;
+use request::HttpRequest;
+use router::Router;
+use std::io::BufReader;
 use std::net::{TcpListener, TcpStream};
-use std::path::PathBuf;
 use std::sync::Arc;
-use std::thread;
+use threadpool::ThreadPool;
 
-fn respond_body(mut stream: TcpStream, body: &str) {
-    let content_length = body.len();
-    let response = format!(
-        "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {}\r\n\r\n{}",
-        content_length,
-        body
-    );
-    stream.write_all(response.as_bytes()).unwrap();
-    stream.flush().unwrap();
-}
+/// Handle a single client connection
+fn handle_client(stream: TcpStream, router: Arc<Router>) {
+    use std::io::Write;
 
-fn handle_client_req(mut stream: TcpStream, directory: Arc<String>) {
-    let mut reader = BufReader::new(&stream);
-    let mut request_line = String::new();
+    let peer_addr = stream.peer_addr().ok();
+    let stream_clone = stream.try_clone();
 
-    if reader.read_line(&mut request_line).is_ok() {
-        let parts: Vec<&str> = request_line.trim().split_whitespace().collect();
-        if parts.len() >= 2 {
-            let method = parts[0];
-            let path = parts[1];
+    let result = (|| -> Result<(), ServerError> {
+        let mut reader = BufReader::new(stream);
 
-            if method == "GET" && path.starts_with("/echo/") {
-                let echo_str = &path[6..];
-                respond_body(stream, echo_str);
-            } else if method == "GET" && path == "/user-agent" {
-                let mut user_agent = String::new();
+        // Parse the HTTP request
+        let request = HttpRequest::parse(&mut reader)?;
 
-                for line in reader.by_ref().lines() {
-                    if let Ok(line) = line {
-                        if line.is_empty() {
-                            break;
-                        }
-                        if line.to_lowercase().starts_with("user-agent:") {
-                            user_agent = line["User-Agent:".len()..].trim().to_string();
-                        }
-                    }
-                }
+        // Route the request and generate response
+        let response_bytes = router.route(request)?;
 
-                respond_body(stream, &user_agent);
-            } else if method == "GET" && path.starts_with("/files/") {
-                let filename = &path[7..]; 
-                let mut filepath = PathBuf::from(&*directory);
-                filepath.push(filename);
+        // Write response back to client
+        let mut stream = reader.into_inner();
+        stream.write_all(&response_bytes)?;
+        stream.flush()?;
 
-                match fs::read(&filepath) {
-                    Ok(content) => {
-                        let response = format!(
-                            "HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: {}\r\n\r\n",
-                            content.len()
-                        );
-                        stream.write_all(response.as_bytes()).unwrap();
-                        stream.write_all(&content).unwrap();
-                        stream.flush().unwrap();
-                    }
-                    Err(_) => {
-                        let response = "HTTP/1.1 404 Not Found\r\n\r\n";
-                        stream.write_all(response.as_bytes()).unwrap();
-                        stream.flush().unwrap();
-                    }
-                }
-            } else if method == "GET" && (path == "/" || path == "/index.html") {
-                respond_body(stream, "Welcome to the Rust server!");
-            } 
-            else if method == "POST" && path.starts_with("/files/") {
-                let filename = &path[7..];
-                let mut filepath = PathBuf::from(&*directory);
-                filepath.push(filename);
-            
-                let mut content_length: usize = 0;
-            
-                for line in reader.by_ref().lines() {
-                    let line = line.unwrap();
-                    if line.is_empty() {
-                        break;
-                    }
-                    if line.to_lowercase().starts_with("content-length:") {
-                        if let Some(len_str) = line.split(':').nth(1) {
-                            content_length = len_str.trim().parse().unwrap_or(0);
-                        }
-                    }
-                }
-            
-                let mut body = vec![0; content_length];
-                reader.read_exact(&mut body).unwrap();
-            
-                if let Ok(mut file) = fs::File::create(&filepath) {
-                    file.write_all(&body).unwrap();
-                    let response = "HTTP/1.1 201 Created\r\n\r\n";
-                    stream.write_all(response.as_bytes()).unwrap();
-                    stream.flush().unwrap();
-                } else {
-                    let response = "HTTP/1.1 500 Internal Server Error\r\n\r\n";
-                    stream.write_all(response.as_bytes()).unwrap();
-                    stream.flush().unwrap();
-                }
-            }
-            
-            else {
-                let response = "HTTP/1.1 404 Not Found\r\nContent-Type: text/plain\r\nContent-Length: 19\r\n\r\n404 - Page not found";
-                stream.write_all(response.as_bytes()).unwrap();
-                stream.flush().unwrap();
-            }
+        Ok(())
+    })();
+
+    // Log errors if any
+    if let Err(e) = result {
+        log::error!(
+            "Error handling request from {:?}: {}",
+            peer_addr.unwrap_or_else(|| "unknown".parse().unwrap()),
+            e
+        );
+
+        // Try to send error response using cloned stream
+        if let Ok(mut stream_for_error) = stream_clone {
+            let error_response = e.to_response();
+            let _ = stream_for_error.write_all(error_response.as_bytes());
+            let _ = stream_for_error.flush();
         }
     }
 }
 
-fn main() {
-    let args: Vec<String> = env::args().collect();
-    let mut directory = String::from(".");
+fn main() -> anyhow::Result<()> {
+    // Parse configuration
+    let config = Config::parse_config();
 
-    let mut i = 0;
-    while i < args.len() {
-        if args[i] == "--directory" && i + 1 < args.len() {
-            directory = args[i + 1].clone();
-            break;
-        }
-        i += 1;
+    // Initialize logger
+    config.init_logger();
+
+    // Validate configuration
+    if let Err(e) = config.validate() {
+        log::error!("Configuration error: {}", e);
+        std::process::exit(1);
     }
 
-    let directory = Arc::new(directory);
-    println!("Serving files from: {}", directory);
-    println!("Server running on 127.0.0.1:4221");
+    // Create router
+    let router = Arc::new(Router::new(config.directory.clone()));
 
-    let listener = TcpListener::bind("127.0.0.1:4221").unwrap();
+    // Create thread pool for handling connections
+    let pool = ThreadPool::new(config.workers);
+
+    // Bind to address
+    let listener = TcpListener::bind(config.server_address())?;
+
+    log::info!("🚀 Server starting...");
+    log::info!("📂 Serving files from: {}", config.directory);
+    log::info!("🔧 Worker threads: {}", config.workers);
+    log::info!("🌐 Listening on: http://{}", config.server_address());
+    log::info!("✨ Server is ready to accept connections!");
+
+    // Accept connections
     for stream in listener.incoming() {
-        let dir_clone = Arc::clone(&directory);
         match stream {
             Ok(stream) => {
-                thread::spawn(move || {
-                    handle_client_req(stream, dir_clone);
+                let router = Arc::clone(&router);
+                pool.execute(move || {
+                    handle_client(stream, router);
                 });
             }
             Err(e) => {
-                println!("Error: {}", e);
+                log::error!("Failed to accept connection: {}", e);
             }
         }
+    }
+
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_server_configuration() {
+        let config = Config {
+            port: 8080,
+            host: "127.0.0.1".to_string(),
+            directory: ".".to_string(),
+            workers: 4,
+            verbose: false,
+        };
+
+        assert_eq!(config.server_address(), "127.0.0.1:8080");
+        assert!(config.validate().is_ok());
     }
 }
