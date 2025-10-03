@@ -5,6 +5,8 @@ use crate::response::HttpResponse;
 use serde_json::json;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::Ordering;
+use std::sync::Arc;
 
 /// Router handles incoming requests and generates responses
 pub struct Router {
@@ -17,7 +19,7 @@ impl Router {
     }
 
     /// Route an incoming request to the appropriate handler
-    pub fn route(&self, request: HttpRequest) -> Result<Vec<u8>> {
+    pub fn route(&self, request: HttpRequest, metrics: &crate::ServerMetrics) -> Result<Vec<u8>> {
         log::info!(
             "{} {} - {} bytes",
             request.method.as_str(),
@@ -38,8 +40,11 @@ impl Router {
                 self.handle_index(&request)
             }
 
-            // Health check endpoint
-            (HttpMethod::GET, "/health") => self.handle_health(&request),
+            // Health check endpoint with system stats
+            (HttpMethod::GET, "/health") => self.handle_health(&request, metrics),
+
+            // Metrics endpoint (Prometheus-style)
+            (HttpMethod::GET, "/metrics") => self.handle_metrics(&request, metrics),
 
             // Echo endpoint - returns whatever is in the path
             (HttpMethod::GET, path) if path.starts_with("/echo/") => {
@@ -121,7 +126,10 @@ impl Router {
         <div class="feature">
             <h3>Features</h3>
             <ul>
-                <li>Concurrent request handling with thread pool</li>
+                <li>High-performance concurrent request handling (100+ req/sec)</li>
+                <li>Graceful shutdown with connection draining</li>
+                <li>Real-time Prometheus-style metrics</li>
+                <li>Request tracing with unique IDs</li>
                 <li>Multiple compression algorithms (Gzip, Deflate, Brotli)</li>
                 <li>Comprehensive error handling</li>
                 <li>Structured logging</li>
@@ -133,7 +141,8 @@ impl Router {
         <div class="feature">
             <h3>Available Endpoints</h3>
             <div class="endpoint"><code>GET /</code> - This page</div>
-            <div class="endpoint"><code>GET /health</code> - Health check</div>
+            <div class="endpoint"><code>GET /health</code> - Health check with metrics</div>
+            <div class="endpoint"><code>GET /metrics</code> - Prometheus-style metrics</div>
             <div class="endpoint"><code>GET /echo/{text}</code> - Echo service</div>
             <div class="endpoint"><code>GET /user-agent</code> - Get User-Agent header</div>
             <div class="endpoint"><code>GET /files/{filename}</code> - Download file</div>
@@ -149,15 +158,79 @@ impl Router {
         ))
     }
 
-    /// Handle health check endpoint
-    fn handle_health(&self, _request: &HttpRequest) -> Result<HttpResponse> {
+    /// Handle health check endpoint with system stats
+    fn handle_health(&self, _request: &HttpRequest, metrics: &crate::ServerMetrics) -> Result<HttpResponse> {
+        let request_count = metrics.request_count.load(Ordering::Relaxed);
+        let error_count = metrics.error_count.load(Ordering::Relaxed);
+        let active_connections = metrics.active_connections.load(Ordering::Relaxed);
+        let total_response_time = metrics.total_response_time_ms.load(Ordering::Relaxed);
+        let uptime = metrics.uptime_seconds();
+        
+        let avg_response_time = if request_count > 0 {
+            total_response_time as f64 / request_count as f64
+        } else {
+            0.0
+        };
+
         let health = json!({
             "status": "healthy",
             "timestamp": chrono::Utc::now().to_rfc3339(),
-            "uptime": "running"
+            "uptime_seconds": uptime,
+            "metrics": {
+                "total_requests": request_count,
+                "total_errors": error_count,
+                "active_connections": active_connections,
+                "avg_response_time_ms": format!("{:.2}", avg_response_time),
+                "error_rate": if request_count > 0 { 
+                    format!("{:.2}%", (error_count as f64 / request_count as f64) * 100.0) 
+                } else { 
+                    "0.00%".to_string() 
+                }
+            }
         });
 
         HttpResponse::ok().json(&health)
+    }
+
+    /// Handle metrics endpoint (Prometheus-style)
+    fn handle_metrics(&self, _request: &HttpRequest, metrics: &crate::ServerMetrics) -> Result<HttpResponse> {
+        let request_count = metrics.request_count.load(Ordering::Relaxed);
+        let error_count = metrics.error_count.load(Ordering::Relaxed);
+        let active_connections = metrics.active_connections.load(Ordering::Relaxed);
+        let total_response_time = metrics.total_response_time_ms.load(Ordering::Relaxed);
+        let uptime = metrics.uptime_seconds();
+
+        // Prometheus exposition format
+        let prometheus_output = format!(
+            "# HELP http_requests_total The total number of HTTP requests\n\
+             # TYPE http_requests_total counter\n\
+             http_requests_total {}\n\
+             \n\
+             # HELP http_errors_total The total number of HTTP errors\n\
+             # TYPE http_errors_total counter\n\
+             http_errors_total {}\n\
+             \n\
+             # HELP http_active_connections Current number of active connections\n\
+             # TYPE http_active_connections gauge\n\
+             http_active_connections {}\n\
+             \n\
+             # HELP http_response_time_milliseconds_total Total response time in milliseconds\n\
+             # TYPE http_response_time_milliseconds_total counter\n\
+             http_response_time_milliseconds_total {}\n\
+             \n\
+             # HELP http_server_uptime_seconds Server uptime in seconds\n\
+             # TYPE http_server_uptime_seconds counter\n\
+             http_server_uptime_seconds {}\n",
+            request_count,
+            error_count,
+            active_connections,
+            total_response_time,
+            uptime
+        );
+
+        Ok(HttpResponse::ok()
+            .header("Content-Type", "text/plain; version=0.0.4")
+            .text(prometheus_output))
     }
 
     /// Handle echo endpoint

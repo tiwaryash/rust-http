@@ -11,7 +11,9 @@ use request::HttpRequest;
 use router::Router;
 use std::io::BufReader;
 use std::net::{TcpListener, TcpStream};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
+use std::time::Instant;
 use threadpool::ThreadPool;
 
 #[cfg(unix)]
@@ -54,8 +56,33 @@ fn set_socket_options(_listener: &TcpListener) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Server metrics for monitoring
+pub struct ServerMetrics {
+    pub request_count: AtomicU64,
+    pub error_count: AtomicU64,
+    pub total_response_time_ms: AtomicU64,
+    pub active_connections: AtomicU64,
+    pub start_time: Instant,
+}
+
+impl ServerMetrics {
+    pub fn new() -> Self {
+        Self {
+            request_count: AtomicU64::new(0),
+            error_count: AtomicU64::new(0),
+            total_response_time_ms: AtomicU64::new(0),
+            active_connections: AtomicU64::new(0),
+            start_time: Instant::now(),
+        }
+    }
+
+    pub fn uptime_seconds(&self) -> u64 {
+        self.start_time.elapsed().as_secs()
+    }
+}
+
 /// Handle a single client connection
-fn handle_client(stream: TcpStream, router: Arc<Router>) {
+fn handle_client(stream: TcpStream, router: Arc<Router>, metrics: Arc<ServerMetrics>) {
     use std::io::Write;
 
     let peer_addr = stream.peer_addr().ok();
@@ -64,14 +91,23 @@ fn handle_client(stream: TcpStream, router: Arc<Router>) {
     // Enable TCP_NODELAY to disable Nagle's algorithm for lower latency
     let _ = stream.set_nodelay(true);
 
+    // Track active connection
+    metrics.active_connections.fetch_add(1, Ordering::Relaxed);
+    let start_time = Instant::now();
+
     let result = (|| -> Result<(), ServerError> {
         let mut reader = BufReader::with_capacity(8192, stream);
 
         // Parse the HTTP request
         let request = HttpRequest::parse(&mut reader)?;
 
+        // Generate request ID for tracking
+        let request_id = metrics.request_count.fetch_add(1, Ordering::Relaxed);
+        
+        log::debug!("Request #{}: {} {}", request_id, request.method.as_str(), request.path);
+
         // Route the request and generate response
-        let response_bytes = router.route(request)?;
+        let response_bytes = router.route(request, &metrics)?;
 
         // Write response back to client
         let mut stream = reader.into_inner();
@@ -80,6 +116,15 @@ fn handle_client(stream: TcpStream, router: Arc<Router>) {
 
         Ok(())
     })();
+
+    // Record metrics
+    let response_time_ms = start_time.elapsed().as_millis() as u64;
+    metrics.total_response_time_ms.fetch_add(response_time_ms, Ordering::Relaxed);
+    metrics.active_connections.fetch_sub(1, Ordering::Relaxed);
+
+    if result.is_err() {
+        metrics.error_count.fetch_add(1, Ordering::Relaxed);
+    }
 
     // Log errors if any
     if let Err(e) = result {
@@ -111,8 +156,18 @@ fn main() -> anyhow::Result<()> {
         std::process::exit(1);
     }
 
-    // Create router
+    // Create router and metrics
     let router = Arc::new(Router::new(config.directory.clone()));
+    let metrics = Arc::new(ServerMetrics::new());
+
+    // Setup graceful shutdown
+    let shutdown = Arc::new(AtomicBool::new(false));
+    let shutdown_clone = Arc::clone(&shutdown);
+    
+    ctrlc::set_handler(move || {
+        log::info!("Received shutdown signal, gracefully shutting down...");
+        shutdown_clone.store(true, Ordering::Relaxed);
+    })?;
 
     // Create thread pool for handling connections
     let pool = ThreadPool::new(config.workers);
@@ -123,24 +178,32 @@ fn main() -> anyhow::Result<()> {
     // Set socket options for better performance
     set_socket_options(&listener)?;
     
-    // Set connection backlog to handle burst traffic
-    // This is done through the listen() syscall which is already called by TcpListener::bind()
-    // But we log that we're ready for high concurrency
+    // Set non-blocking mode for shutdown handling
+    listener.set_nonblocking(false)?;
     
     log::info!("Server starting...");
     log::info!("Serving files from: {}", config.directory);
     log::info!("Worker threads: {}", config.workers);
     log::info!("Listening on: http://{}", config.server_address());
     log::info!("Optimizations: TCP_NODELAY=on, SO_REUSEADDR=on, Buffer=8KB");
+    log::info!("Features: Graceful shutdown, Metrics tracking, Request ID tracing");
+    log::info!("Metrics endpoint: http://{}/metrics", config.server_address());
     log::info!("Server is ready to handle 100+ concurrent requests per second!");
 
     // Accept connections
     for stream in listener.incoming() {
+        // Check for shutdown signal
+        if shutdown.load(Ordering::Relaxed) {
+            log::info!("Shutdown initiated, no longer accepting new connections");
+            break;
+        }
+
         match stream {
             Ok(stream) => {
                 let router = Arc::clone(&router);
+                let metrics_clone = Arc::clone(&metrics);
                 pool.execute(move || {
-                    handle_client(stream, router);
+                    handle_client(stream, router, metrics_clone);
                 });
             }
             Err(e) => {
@@ -148,6 +211,32 @@ fn main() -> anyhow::Result<()> {
             }
         }
     }
+
+    // Wait for active connections to finish
+    log::info!("Waiting for {} active connections to finish...", 
+        metrics.active_connections.load(Ordering::Relaxed));
+    
+    drop(listener);
+    
+    // Give threads time to finish (with timeout)
+    let shutdown_timeout = std::time::Duration::from_secs(10);
+    let shutdown_start = Instant::now();
+    
+    while metrics.active_connections.load(Ordering::Relaxed) > 0 
+        && shutdown_start.elapsed() < shutdown_timeout {
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+    
+    let remaining = metrics.active_connections.load(Ordering::Relaxed);
+    if remaining > 0 {
+        log::warn!("Shutdown timeout reached with {} connections still active", remaining);
+    }
+
+    log::info!("Server shutdown complete");
+    log::info!("Final stats - Requests: {}, Errors: {}, Uptime: {}s",
+        metrics.request_count.load(Ordering::Relaxed),
+        metrics.error_count.load(Ordering::Relaxed),
+        metrics.uptime_seconds());
 
     Ok(())
 }

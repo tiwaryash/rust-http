@@ -24,3 +24,4 @@ chrono = "0.4"                                   # date/time handling
 threadpool = "1.8"                               # thread pool for better concurrency
 regex = "1.10"                                   # regex support for routing
 libc = "0.2"                                     # low-level socket operations for optimizations
+ctrlc = "3.4"                                    # graceful shutdown signal handling
